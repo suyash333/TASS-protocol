@@ -1,0 +1,88 @@
+# ─────────────────────────────────────────────────────────────────────
+# TASS — Tokeniser-Aware Structured Shorthand
+# Format version  : 1.0
+# Schema          : influencer_rate_v1
+# Author          : Suyash Sharma (InfluencersBuddy.com)
+# DOI             : 10.5281/zenodo.20403219
+# ─────────────────────────────────────────────────────────────────────
+
+# ── DICTIONARY ───────────────────────────────────────────────────────
+# Maps short symbols → full field names.
+# This block is injected into the AI system prompt and cached.
+# Lines beginning with # are comments — stripped before parsing.
+
+@dict
+  ~t = tier           # mc=micro | md=mid | mk=macro | mn=nano
+  ~l = rate_low       # INR integer, k suffix = thousands (18k = 18000)
+  ~m = rate_mid       # INR integer
+  ~h = rate_high      # INR integer
+  ~n = niche_mult     # float 1 decimal — fashion/tech commands premium
+  ~c = city_mult      # float 1 decimal — metro vs tier-2/3
+  ~g = gst            # 0 = not applicable | 1 = must charge 18% GST
+  ~p = template_id    # 3-char code mapping to server-side render template
+  ~e = engagement     # float percentage e.g. 4.2
+  ~f = followers      # integer in thousands e.g. 45 = 45,000
+@end
+
+# ── VALUE CODES ──────────────────────────────────────────────────────
+# Short codes used as values inside records.
+# Server maps these back to full strings after parsing.
+
+@codes
+  # tier values
+  mn = nano            # < 1,000 followers
+  mc = micro           # 1,000 – 50,000
+  md = mid             # 50,000 – 500,000
+  mk = macro           # 500,000+
+
+  # template ids
+  fmm  = fashion_micro_metro
+  fmt  = fashion_micro_tier2
+  tmm  = tech_micro_metro
+  lmm  = lifestyle_micro_metro
+  fmdm = fashion_mid_metro
+@end
+
+# ── RECORDS ──────────────────────────────────────────────────────────
+# One record per line. Fields separated by single spaces.
+# Format: ~key:value ~key:value ...
+# Field order does not matter — keys are explicit.
+
+@records
+~t:mc ~f:45  ~e:4.2 ~l:18k  ~m:28k  ~h:42k   ~n:1.2 ~c:1.3 ~g:0 ~p:fmm
+~t:mc ~f:22  ~e:6.1 ~l:9k   ~m:14k  ~h:22k   ~n:1.2 ~c:0.8 ~g:0 ~p:fmt
+~t:md ~f:180 ~e:2.8 ~l:55k  ~m:85k  ~h:130k  ~n:1.5 ~c:1.3 ~g:1 ~p:fmdm
+~t:mc ~f:38  ~e:5.0 ~l:22k  ~m:34k  ~h:50k   ~n:1.8 ~c:1.3 ~g:0 ~p:tmm
+~t:mn ~f:4   ~e:9.3 ~l:3k   ~m:5k   ~h:8k    ~n:1.0 ~c:0.8 ~g:0 ~p:lmm
+~t:mk ~f:820 ~e:1.9 ~l:280k ~m:420k ~h:650k  ~n:1.2 ~c:1.3 ~g:1 ~p:fmdm
+@end
+
+# ── PARSER REFERENCE ─────────────────────────────────────────────────
+# Python — pip install tass (coming soon) or use parser.py directly
+#
+#   from tass import SchemaCompiler, TASSParser
+#   compiler = SchemaCompiler()
+#   parser_map, system_prompt = compiler.compile(my_schema)
+#   parser = TASSParser(dictionary_map=parser_map)
+#   result = parser.safe_parse(raw_llm_output)
+#
+# JavaScript — see tass.js
+#
+#   const { SchemaCompiler, TASSParser } = require('./tass');
+#   const { parserMap, systemPrompt } = new SchemaCompiler().compile(schema);
+#   const result = new TASSParser({ dictionaryMap: parserMap }).safeParse(raw);
+#
+# ── PARSED OUTPUT (first record) ─────────────────────────────────────
+# {
+#   tier:        "micro",
+#   followers:   45000,
+#   engagement:  4.2,
+#   rate_low:    18000,
+#   rate_mid:    28000,
+#   rate_high:   42000,
+#   niche_mult:  1.2,
+#   city_mult:   1.3,
+#   gst:         0,
+#   template_id: "fmm"
+# }
+# ─────────────────────────────────────────────────────────────────────
