@@ -3,3 +3,6 @@ tests/__pycache__/
 __pycache__/
 *.egg-info/
 *.pyc
+benchmark.py
+cli.py
+file_parser.py
