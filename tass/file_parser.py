@@ -107,11 +107,11 @@ class TASSFileParser:
         result.dictionary[sym] = field_name
 
     def _parse_codes_line(self, line: str, result: TASSFile) -> None:
-        # Format: code = full_value
-        m = re.match(r"^(\S+)\s*=\s*(\S+)$", line)
+        # Format: code = full_value  (value may contain spaces, e.g. "Light Rain")
+        m = re.match(r"^(\S+)\s*=\s*(.+)$", line)
         if not m:
             raise TASSFileError(f"Malformed @codes entry: {line!r}")
-        result.codes[m.group(1)] = m.group(2)
+        result.codes[m.group(1)] = m.group(2).strip()
 
     def _parse_record_line(self, line: str, result: TASSFile) -> None:
         result.raw_records.append(line)

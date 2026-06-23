@@ -64,6 +64,12 @@ class TestTASSFileParser:
         assert m["t"] == ("tier", "string")
         assert m["f"] == ("followers", "string")
 
+    def test_codes_multiword_value(self):
+        tass = "@codes\n  lr = Light Rain\n  bc = Broken Clouds\n@end\n"
+        tf = TASSFileParser().parse(tass)
+        assert tf.codes["lr"] == "Light Rain"
+        assert tf.codes["bc"] == "Broken Clouds"
+
     def test_comments_stripped(self):
         tass = "@dict\n  ~a = name # this is a comment\n@end\n"
         tf = TASSFileParser().parse(tass)
