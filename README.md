@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/suyash333/TASS-protocol)
 
-A stenography-inspired output format for reducing LLM inference costs by **75–85%** in structured extraction pipelines.
+A stenography-inspired output format for reducing LLM inference costs by **75–92%** in structured extraction pipelines.
 
 Originally developed to optimise the high-volume data extraction pipelines at [InfluencersBuddy.com](https://influencersbuddy.com) and [IndianAIApps.com](https://indianaiapps.com).
 
@@ -34,6 +34,15 @@ Read the full white paper: [Tokeniser-Aware Shorthand (TASS) — Zenodo](https:/
 
 ---
 
+## Install
+
+```bash
+pip install tass-protocol                  # core — zero dependencies
+pip install tass-protocol[benchmark]       # + tiktoken for exact BPE token counts
+```
+
+---
+
 ## Quickstart — Python
 
 ```python
@@ -51,12 +60,13 @@ compiler = SchemaCompiler()
 parser_map, system_prompt = compiler.compile(my_schema)
 
 print(system_prompt)
-# You are an extraction engine. Output ONLY the following format. No prose.
+# You are a data extraction engine.
+# Output ONLY the TASS format below. No prose. No markdown. No explanation.
 # Format: ~a:<value> ~b:<value> ~c:<value>
 # Dictionary:
-# ~a = user_intent
-# ~b = urgency_level
-# ~c = requires_routing
+#   ~a = user_intent
+#   ~b = urgency_level
+#   ~c = requires_routing
 
 # 3. Query your LLM using system_prompt, then parse the response
 raw_llm_output = "~a:refund ~b:5 ~c:true"
@@ -65,6 +75,13 @@ parser = TASSParser(dictionary_map=parser_map)
 result = parser.parse(raw_llm_output)
 print(result)
 # {'user_intent': 'refund', 'urgency_level': 5, 'requires_routing': True}
+```
+
+### JSON fallback
+
+```python
+# safe_parse() tries TASS first, falls back to JSON if the LLM slips up
+result = parser.safe_parse(raw_llm_output)
 ```
 
 ---
@@ -92,9 +109,36 @@ console.log(parser.parse(raw));
 
 ---
 
+## CLI
+
+After `pip install tass-protocol` a `tass` command is available:
+
+```bash
+# Generate a system prompt from a schema file
+tass compile schema.json
+
+# Parse a raw LLM response into JSON
+tass parse "~a:refund ~b:5 ~c:true" --schema schema.json
+
+# Parse a .tass file and output records as JSON
+tass read spec/sample.tass --records-only
+
+# Benchmark token savings vs JSON, pipe, and prose
+tass benchmark examples/weather.tass --approx   # offline (no tiktoken needed)
+tass benchmark examples/weather.tass            # exact BPE counts via tiktoken
+```
+
+---
+
 ## The `.tass` file format
 
-TASS defines a human-readable file format for storing schemas, dictionaries, and records. See [`spec/sample.tass`](spec/sample.tass) for a full example.
+TASS defines a human-readable file format for storing schemas, value dictionaries, and records. Three blocks:
+
+| Block | Purpose |
+|-------|---------|
+| `@dict` | Maps `~symbol` → field name (injected into the LLM system prompt) |
+| `@codes` | Maps short tokens → full values (server-side expansion after parsing) |
+| `@records` | One TASS record per line |
 
 ```
 @dict
@@ -104,15 +148,81 @@ TASS defines a human-readable file format for storing schemas, dictionaries, and
   ~g = gst         # 0=not applicable | 1=charge 18%
 @end
 
+@codes
+  mc = micro
+  md = mid
+  mk = macro
+@end
+
 @records
 ~t:mc ~l:18k ~h:42k ~g:0
 ~t:md ~l:55k ~h:130k ~g:1
 @end
 ```
 
+Parse it in Python:
+
+```python
+from tass import TASSFileParser
+
+tfile = TASSFileParser().parse_file("spec/sample.tass")
+print(tfile.records[0])
+# {'tier': 'micro', 'rate_low': '18k', 'rate_high': '42k', 'gst': '0'}
+
+print(tfile.codes)
+# {'mc': 'micro', 'md': 'mid', 'mk': 'macro', ...}
+```
+
+See [`spec/sample.tass`](spec/sample.tass) for a full influencer-rate example.
+
 ---
 
-## Token savings at a glance
+## Real-world example: Weather API
+
+A standard OpenWeatherMap response is deeply nested JSON with ~60 fields, internal IDs, icon codes, and Kelvin temperatures. Here is what the same data looks like side by side:
+
+**JSON (what the API returns — 620 tokens for current conditions alone):**
+
+```json
+{
+  "coord": { "lon": 77.209, "lat": 28.6139 },
+  "weather": [{ "id": 721, "main": "Haze", "description": "haze", "icon": "50d" }],
+  "main": {
+    "temp": 308.15, "feels_like": 311.42, "temp_min": 306.48, "temp_max": 309.82,
+    "pressure": 1002, "humidity": 52, "sea_level": 1002, "grnd_level": 974
+  },
+  "wind": { "speed": 4.12, "deg": 230, "gust": 6.80 },
+  "clouds": { "all": 40 },
+  "sys": { "country": "IN", "sunrise": 1750634220, "sunset": 1750683540 },
+  "air_quality": { "aqi": 4, "pm2_5": 62.18, "pm10": 88.43 },
+  "name": "Delhi",
+  ...
+}
+```
+
+**TASS (what the LLM emits — 52 tokens, including 5-slot forecast: 115 tokens total):**
+
+```
+~t:1750665600 ~a:Delhi ~b:IN ~c:hz ~d:35.0 ~e:38.3 ~f:33.3 ~g:36.7 ~h:52 ~i:1002 ~j:14.8 ~k:SW ~l:24.5 ~m:3.5 ~n:40 ~o:4 ~p:62.18 ~q:88.43 ~r:1750634220 ~s:1750683540 ~u:0.0
+~t:1750708800 ~a:Delhi ~b:IN ~c:lr ~d:30.6 ~e:33.3 ~f:29.4 ~g:31.7 ~h:62 ~i:1003 ~j:22.2 ~k:S ~l:0.0 ~m:4.5 ~n:85 ~o:4 ~p:62.18 ~q:88.43 ~r:1750634220 ~s:1750683540 ~u:0.68
+```
+
+After parsing, `hz` → `Haze`, `SW` → `Southwest`, `4` → `Poor`, `lr` → `Light Rain` — all expanded server-side from the `@codes` block, never sent back over the wire.
+
+**Token comparison (o200k_base, current conditions + 5-slot forecast):**
+
+| Format | Tokens | vs JSON |
+|--------|--------|---------|
+| JSON (full response) | ~1,400 | baseline |
+| JSON (flat, fields only) | ~380 | ↓ 73% |
+| Pipe-delimited | ~135 | ↓ 90% |
+| **TASS** | **~115** | **↓ 92%** |
+
+See [`examples/weather_raw.json`](examples/weather_raw.json) and [`examples/weather.tass`](examples/weather.tass) for the complete files.
+
+---
+
+## Token savings at a glance (simple schema)
 
 | Format | Output tokens | vs JSON | Parse complexity |
 |--------|--------------|---------|-----------------|
@@ -122,7 +232,7 @@ TASS defines a human-readable file format for storing schemas, dictionaries, and
 | Pipe-delimited | ~32 | ↓ 59% | `split('|')` |
 | **TASS** | **~17** | **↓ 78%** | **split + dict lookup** |
 
-*Token counts estimated via GPT-5 `o200k_base` tokeniser, consistent with TOON benchmark methodology.*
+*Token counts estimated via `o200k_base` tokeniser, consistent with TOON benchmark methodology.*
 
 ---
 
@@ -160,8 +270,11 @@ The Unicode Standard includes a Duployan shorthand block (U+1BC00–U+1BCAF). Th
 ## Roadmap
 
 - [ ] Empirical benchmark — 100-call test harness across Claude Haiku 4.5, Gemini 2.5 Flash, Llama 4 Maverick
-- [ ] Python parser with JSON fallback (`tass.safe_parse`)
-- [ ] JavaScript / TypeScript parser package (`tass-js`)
+- [x] Python parser with JSON fallback (`tass.safe_parse`)
+- [x] JavaScript parser (`tass.js`)
+- [x] CLI — `tass compile / parse / read / benchmark`
+- [x] `.tass` file format parser
+- [x] Benchmark harness with tiktoken + offline approximation mode
 - [ ] Go parser (`tass-go`)
 - [ ] Streaming support — field-level delimiters for streamed responses
 - [ ] Fine-tuning study — smaller open models on TASS schema compliance
