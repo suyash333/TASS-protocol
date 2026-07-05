@@ -10,6 +10,7 @@ License    : MIT
 
 from .parser import TASSParser, SchemaCompiler, TASSParseError, TASSValidationError
 from .file_parser import TASSFileParser, TASSFile, TASSFileError
+from .crypto import TASSSigner, TASSIntegrityError, hash_record, derive_key, canonicalize
 
 __version__ = "0.1.0"
 __author__ = "Suyash Sharma"
@@ -25,4 +26,10 @@ __all__ = [
     "TASSFileParser",
     "TASSFile",
     "TASSFileError",
+    # Crypto
+    "TASSSigner",
+    "TASSIntegrityError",
+    "hash_record",
+    "derive_key",
+    "canonicalize",
 ]

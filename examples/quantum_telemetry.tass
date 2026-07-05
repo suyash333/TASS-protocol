@@ -1,0 +1,89 @@
+# ─────────────────────────────────────────────────────────────────────
+# TASS — Tokeniser-Aware Structured Shorthand
+# Example  : Superconducting-qubit calibration telemetry
+# Version  : 1.0
+# DOI      : 10.5281/zenodo.20403219
+# ─────────────────────────────────────────────────────────────────────
+#
+# CONTEXT
+# ───────
+# Quantum hardware labs recalibrate every qubit several times a day and
+# log the results: coherence times, gate fidelities, readout errors,
+# resonator frequencies. A 100-qubit device produces tens of thousands
+# of identical-schema records per week — exactly the workload TASS is
+# built for, whether records come from an LLM summarising lab notes or
+# directly from a calibration pipeline that wants compact storage.
+#
+# Records can be signed with `tass sign` (HMAC-SHA3-256) so downstream
+# analysis can prove calibration data was not altered — the MAC travels
+# inside the line as a ~!:<tag> pair. See docs/CRYPTO.md.
+# ─────────────────────────────────────────────────────────────────────
+
+
+# ── DICTIONARY ───────────────────────────────────────────────────────
+
+@dict
+  ~q = qubit_id         # integer index on the device
+  ~d = device           # device code (see @codes)
+  ~t = timestamp        # calibration run Unix timestamp
+  ~a = t1_us            # T1 relaxation time, microseconds, 1 decimal
+  ~b = t2_us            # T2 dephasing time, microseconds, 1 decimal
+  ~f = freq_ghz         # qubit transition frequency, GHz, 4 decimals
+  ~r = readout_err      # readout assignment error, 4 decimals
+  ~s = sq_gate_err      # single-qubit gate error (X90), 5 decimals
+  ~w = tq_gate_err      # two-qubit gate error (CZ, worst pair), 5 decimals
+  ~e = anharm_mhz       # anharmonicity, MHz, 1 decimal (negative)
+  ~g = status           # calibration outcome (see @codes)
+@end
+
+
+# ── VALUE CODES ──────────────────────────────────────────────────────
+
+@codes
+  # device
+  fx = falcon_x27
+  eg = eagle_r3
+  hr = heron_r2
+
+  # status
+  ok = calibrated
+  dg = degraded          # usable, above error budget
+  fl = failed            # excluded from execution graph
+  rt = retuning          # calibration in progress
+@end
+
+
+# ── RECORDS ──────────────────────────────────────────────────────────
+# One line per qubit per calibration run.
+# Signed variant appends ~!:<tag> — verify with `tass verify`.
+
+@records
+~q:0  ~d:hr ~t:1751702400 ~a:312.4 ~b:187.2 ~f:5.0142 ~r:0.0110 ~s:0.00021 ~w:0.00480 ~e:-340.2 ~g:ok
+~q:1  ~d:hr ~t:1751702400 ~a:288.7 ~b:203.9 ~f:4.8931 ~r:0.0089 ~s:0.00018 ~w:0.00512 ~e:-338.7 ~g:ok
+~q:2  ~d:hr ~t:1751702400 ~a:141.3 ~b:96.4  ~f:4.9505 ~r:0.0231 ~s:0.00044 ~w:0.00997 ~e:-341.5 ~g:dg
+~q:3  ~d:hr ~t:1751702400 ~a:301.8 ~b:174.6 ~f:5.1077 ~r:0.0102 ~s:0.00019 ~w:0.00455 ~e:-339.9 ~g:ok
+~q:4  ~d:hr ~t:1751702400 ~a:22.1  ~b:14.8  ~f:5.0688 ~r:0.1840 ~s:0.00350 ~w:0.04120 ~e:-342.0 ~g:fl
+~q:5  ~d:hr ~t:1751702400 ~a:295.5 ~b:191.0 ~f:4.9219 ~r:0.0095 ~s:0.00022 ~w:0.00490 ~e:-340.8 ~g:rt
+@end
+
+
+# ── PARSED OUTPUT (first record) ─────────────────────────────────────
+# {
+#   qubit_id:    "0",
+#   device:      "heron_r2",
+#   timestamp:   "1751702400",
+#   t1_us:       "312.4",
+#   t2_us:       "187.2",
+#   freq_ghz:    "5.0142",
+#   readout_err: "0.0110",
+#   sq_gate_err: "0.00021",
+#   tq_gate_err: "0.00480",
+#   anharm_mhz:  "-340.2",
+#   status:      "calibrated"
+# }
+#
+# ── TOKEN COMPARISON (o200k_base, 6 records) ─────────────────────────
+#   JSON (nested, provider-style)  ~1,050 tokens   baseline
+#   JSON (flat)                      ~640 tokens   ↓ 39%
+#   TASS                             ~330 tokens   ↓ 69%
+# ─────────────────────────────────────────────────────────────────────

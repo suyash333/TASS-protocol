@@ -131,7 +131,53 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_sign(args: argparse.Namespace) -> int:
+    """Sign a TASS record line with HMAC-SHA3-256."""
+    from tass.crypto import TASSSigner, derive_key
+
+    key = _resolve_key(args)
+    if key is None:
+        return 1
+
+    signer = TASSSigner(derive_key(key, context=args.context.encode()))
+    print(signer.sign_line(args.input))
+    return 0
+
+
+def cmd_verify(args: argparse.Namespace) -> int:
+    """Verify a signed TASS record line. Exit 0 if valid, 2 if not."""
+    from tass.crypto import TASSSigner, derive_key
+
+    key = _resolve_key(args)
+    if key is None:
+        return 1
+
+    signer = TASSSigner(derive_key(key, context=args.context.encode()))
+    if signer.verify_line(args.input):
+        print("OK: signature valid")
+        return 0
+    print("FAIL: signature missing or invalid", file=sys.stderr)
+    return 2
+
+
 # ── Helpers ───────────────────────────────────────────────────────────
+
+
+def _resolve_key(args: argparse.Namespace) -> bytes | None:
+    """Read the signing key from --key-file or the TASS_KEY env var."""
+    import os
+
+    if args.key_file:
+        try:
+            return Path(args.key_file).read_bytes().strip()
+        except FileNotFoundError:
+            _err(f"Key file not found: {args.key_file}")
+            return None
+    env = os.environ.get("TASS_KEY")
+    if env:
+        return env.encode("utf-8")
+    _err("No key: pass --key-file or set the TASS_KEY environment variable.")
+    return None
 
 
 def _load_json(path: str) -> dict | list:
@@ -260,6 +306,46 @@ def build_parser() -> argparse.ArgumentParser:
     p_bench.add_argument("--approx", action="store_true",
                          help="Use fast offline approximation instead of tiktoken")
     p_bench.set_defaults(func=cmd_benchmark)
+
+    # ── sign / verify ────────────────────────────────────────────────
+    key_help = "Path to a file containing the signing key (or set TASS_KEY env var)"
+    ctx_help = "Key-derivation context string, e.g. your pipeline name (default: 'tass')"
+
+    p_sign = sub.add_parser(
+        "sign",
+        help="Append an HMAC-SHA3-256 tag to a TASS record line",
+        description=textwrap.dedent("""\
+            Sign a TASS record with a compact post-quantum-safe MAC.
+            The tag is appended as a ~!:<tag> pair inside the line.
+
+            Example:
+              export TASS_KEY="my-pipeline-secret"
+              tass sign "~t:mc ~l:18k ~h:42k ~g:0"
+              # ~t:mc ~l:18k ~h:42k ~g:0 ~!:3vX9kQ2mP8sT1uW4yZ6bCg
+        """),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p_sign.add_argument("input", help="Raw TASS record line to sign")
+    p_sign.add_argument("--key-file", dest="key_file", help=key_help)
+    p_sign.add_argument("--context", default="tass", help=ctx_help)
+    p_sign.set_defaults(func=cmd_sign)
+
+    p_verify = sub.add_parser(
+        "verify",
+        help="Verify a signed TASS record line (exit 0 = valid, 2 = invalid)",
+        description=textwrap.dedent("""\
+            Verify the ~!:<tag> MAC embedded in a signed TASS record.
+            Verification is constant-time and tolerant of field reordering.
+
+            Example:
+              tass verify "~t:mc ~l:18k ~h:42k ~g:0 ~!:3vX9kQ..." --key-file key.bin
+        """),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p_verify.add_argument("input", help="Signed TASS record line")
+    p_verify.add_argument("--key-file", dest="key_file", help=key_help)
+    p_verify.add_argument("--context", default="tass", help=ctx_help)
+    p_verify.set_defaults(func=cmd_verify)
 
     return p
 

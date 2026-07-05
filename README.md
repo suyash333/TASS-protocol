@@ -126,6 +126,11 @@ tass read spec/sample.tass --records-only
 # Benchmark token savings vs JSON, pipe, and prose
 tass benchmark examples/weather.tass --approx   # offline (no tiktoken needed)
 tass benchmark examples/weather.tass            # exact BPE counts via tiktoken
+
+# Sign / verify records (HMAC-SHA3-256, post-quantum-safe, zero deps)
+export TASS_KEY="pipeline-secret"
+tass sign "~t:mc ~l:18k ~h:42k ~g:0"
+tass verify "~t:mc ~l:18k ~h:42k ~g:0 ~!:3vX9kQ..."   # exit 0 = valid
 ```
 
 ---
@@ -222,6 +227,39 @@ See [`examples/weather_raw.json`](examples/weather_raw.json) and [`examples/weat
 
 ---
 
+## Cryptographic integrity (post-quantum-safe)
+
+TASS records travel through pipelines no human ever reads — which is exactly
+where silent tampering goes unnoticed. `tass.crypto` attaches a compact
+HMAC-SHA3-256 tag *inside* the record line, using only symmetric primitives
+(nothing for Shor's algorithm to break; Grover's at most halves 256-bit
+security to a still-infeasible 2¹²⁸):
+
+```python
+from tass.crypto import TASSSigner, derive_key
+
+key = derive_key(b"master-secret", context=b"weather-pipeline-v1")
+signer = TASSSigner(key)
+
+signed = signer.sign_line("~a:Delhi ~c:hz ~d:35.0")
+# '~a:Delhi ~c:hz ~d:35.0 ~!:Yx2mP8sT1uW4yZ6bCgQvRw'
+
+signer.verify_line(signed)                        # True
+signer.verify_line(signed.replace("35.0", "99"))  # False — tampered
+```
+
+The `~!:` tag is outside the schema symbol pool, so signed records still
+parse normally. Verification is constant-time and order-independent
+(records are canonicalized before MAC computation). Full threat model,
+primitive rationale, and explicit non-goals: [`docs/CRYPTO.md`](docs/CRYPTO.md).
+
+**Quantum-telemetry example:** [`examples/quantum_telemetry.tass`](examples/quantum_telemetry.tass)
+shows a superconducting-qubit calibration schema (T1/T2, gate fidelities,
+readout error) — high-volume fixed-schema records at ~69% token savings,
+signable end-to-end.
+
+---
+
 ## Token savings at a glance (simple schema)
 
 | Format | Output tokens | vs JSON | Parse complexity |
@@ -275,6 +313,8 @@ The Unicode Standard includes a Duployan shorthand block (U+1BC00–U+1BCAF). Th
 - [x] CLI — `tass compile / parse / read / benchmark`
 - [x] `.tass` file format parser
 - [x] Benchmark harness with tiktoken + offline approximation mode
+- [x] Cryptographic integrity layer — HMAC-SHA3-256 signing, HKDF key derivation (`tass.crypto`)
+- [ ] Post-quantum signature support (ML-DSA / SLH-DSA) for third-party verification
 - [ ] Go parser (`tass-go`)
 - [ ] Streaming support — field-level delimiters for streamed responses
 - [ ] Fine-tuning study — smaller open models on TASS schema compliance
