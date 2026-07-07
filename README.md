@@ -32,6 +32,8 @@ TASS treats the LLM's byte-pair encoding (tokeniser) as a stenographic dictionar
 
 Read the full white paper: [Tokeniser-Aware Shorthand (TASS) — Zenodo](https://doi.org/10.5281/zenodo.20403219)
 
+**📖 New: [the TASS book](book/README.md)** — a complete, research-grade treatment: the economics, tokenizer theory, format specification, failure engineering, cryptographic integrity, and **system design patterns** (reference architectures, schema registries, fallback ladders), with runnable companion code in [`book/snippets/`](book/snippets/).
+
 ---
 
 ## Install

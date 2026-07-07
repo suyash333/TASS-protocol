@@ -92,6 +92,20 @@ class TestTASSParser:
         with pytest.raises(TASSValidationError, match="Missing fields"):
             parser.validate(result)
 
+    def test_float_string_coerces_to_integer(self):
+        """F2 deviation: model emits '2.0' for an integer field."""
+        m, _ = SchemaCompiler().compile({"level": "integer"})
+        p = TASSParser(dictionary_map=m)
+        assert p.parse("~a:2.0")["level"] == 2
+
+    def test_uncoercible_value_raises_parse_error(self):
+        """Coercion failures must raise TASSParseError, never bare ValueError,
+        so safe_parse's fallback ladder can catch them."""
+        m, _ = SchemaCompiler().compile({"level": "integer"})
+        p = TASSParser(dictionary_map=m)
+        with pytest.raises(TASSParseError, match="coerce"):
+            p.parse("~a:banana")
+
     def test_legacy_map(self):
         legacy = {"a": "name", "b": "age"}
         p = TASSParser(dictionary_map=legacy)
