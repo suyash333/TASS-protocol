@@ -98,7 +98,26 @@ python book/snippets/signed_audit_trail.py
 
 ---
 
-## C.6 Choosing your own
+## C.6 Beyond the LLM: byte- and character-priced channels
+
+*Six non-LLM applications of the format itself — the budget unit becomes
+bytes, characters, or human effort instead of tokens. Full analysis with
+the honest "when binary formats win" boundary: Chapter 11.*
+
+| Use case | Artifact |
+|---|---|
+| IoT / LPWAN sensor telemetry (LoRaWAN-class byte budgets) | [`examples/iot_sensor.tass`](../../examples/iot_sensor.tass) |
+| Structured / audit logging (stdlib `logging.Formatter`) | [`snippets/tass_logger.py`](../snippets/tass_logger.py) |
+| SMS / USSD / memo-field messaging, QR & NFC tags, URL state | [`snippets/payload_budgets.py`](../snippets/payload_budgets.py) — exact fit-vs-budget tables |
+| Field data collection (human-transcribed records) | Ch. 11 §11.7 |
+
+```bash
+tass read examples/iot_sensor.tass --records-only
+python book/snippets/tass_logger.py
+python book/snippets/payload_budgets.py
+```
+
+## C.7 Choosing your own
 
 Map a candidate workload onto the catalog by its dominant constraint:
 

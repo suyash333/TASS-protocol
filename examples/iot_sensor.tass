@@ -1,0 +1,64 @@
+# ─────────────────────────────────────────────────────────────────────
+# TASS — Tokeniser-Aware Structured Shorthand
+# Example  : Agricultural soil-sensor fleet over LoRaWAN
+# Version  : 1.0
+# DOI      : 10.5281/zenodo.20403219
+# ─────────────────────────────────────────────────────────────────────
+#
+# CONTEXT (book chapter 11 §11.2 — a NON-LLM use case)
+# ───────
+# The budget unit here is BYTES ON AIR, not tokens. LoRaWAN payloads run
+# 51–222 bytes depending on data rate; every byte costs airtime, battery
+# and duty-cycle budget. A record below is 38 bytes — inside even the
+# 51-byte DR0 budget, with room at higher data rates for a ~! integrity
+# tag added at the gateway.
+#
+# The dictionary below never travels over the air: it ships in the
+# device documentation and the ingest service, versioned in git — the
+# schema-registry pattern (book chapter 9 §9.4) applied to firmware.
+#
+# vs alternatives for the same 38-byte record (see payload_budgets.py):
+#   minified JSON  93 bytes     (2.4× — blows the smallest LoRa budget)
+#   CBOR           ~28 bytes    (0.7× — smaller, but not printable:
+#                                no grep on captures, no serial-console
+#                                debugging at the field site)
+# ─────────────────────────────────────────────────────────────────────
+
+@dict
+  ~n = node_id         # 2-char node code (see @codes for zones)
+  ~t = soil_temp_c     # °C, 1 decimal
+  ~m = moisture_pct    # volumetric water content, integer %
+  ~p = ph              # soil pH, 1 decimal
+  ~b = battery_pct     # remaining battery, integer %
+  ~s = status          # node health (see @codes)
+@end
+
+@codes
+  # status
+  ok = nominal
+  lo = low_battery      # < 20% — schedule maintenance visit
+  dr = sensor_drift     # pH cell needs recalibration
+  er = fault            # exclude readings from irrigation decisions
+
+  # node zones (first char of node_id)
+  a = north_field
+  b = orchard
+  c = greenhouse
+@end
+
+@records
+~n:a3 ~t:23.4 ~m:31 ~p:6.8 ~b:87 ~s:ok
+~n:a7 ~t:24.1 ~m:28 ~p:6.9 ~b:64 ~s:ok
+~n:b2 ~t:21.8 ~m:44 ~p:7.1 ~b:18 ~s:lo
+~n:b5 ~t:22.0 ~m:41 ~p:5.2 ~b:71 ~s:dr
+~n:c1 ~t:27.6 ~m:55 ~p:6.5 ~b:92 ~s:ok
+~n:c4 ~t:27.9 ~m:12 ~p:6.6 ~b:88 ~s:er
+@end
+
+# ── FIELD-SITE DEBUGGING, THE WHOLE ARGUMENT IN ONE LINE ─────────────
+#   $ grep '~s:lo' fleet.log        ← works on the raw packet capture
+#
+# ── PARSED OUTPUT (third record) ─────────────────────────────────────
+# { node_id: "b2", soil_temp_c: "21.8", moisture_pct: "44",
+#   ph: "7.1", battery_pct: "18", status: "low_battery" }
+# ─────────────────────────────────────────────────────────────────────

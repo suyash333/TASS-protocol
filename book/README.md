@@ -44,6 +44,7 @@ case studies.
 | 8 | [Cryptographic Integrity](chapters/08-crypto.md) | Tamper-evident records with post-quantum-safe symmetric primitives |
 | 9 | [System Design with TASS](chapters/09-system-design.md) | Reference architectures: pipelines, queues, schema registries, fallback ladders, observability |
 | 10 | [Case Studies](chapters/10-case-studies.md) | Influencer rates, weather APIs, quantum-device telemetry — end to end |
+| 11 | [TASS Beyond the LLM](chapters/11-beyond-llm.md) | The format on byte- and character-priced channels: IoT/LPWAN, SMS, QR/NFC, logs, URLs, field data |
 | A | [API Reference](chapters/appendix-a-api.md) | Every public class and function, with signatures |
 | B | [Glossary & Bibliography](chapters/appendix-b-glossary.md) | Terms and further reading |
 | C | [Use-Case Catalog](chapters/appendix-c-use-cases.md) | Every use case → its schema, code, and analysis chapter, runnable |
@@ -59,6 +60,8 @@ Each snippet is standalone and referenced from the chapters:
 | [`snippets/fallback_ladder.py`](snippets/fallback_ladder.py) | Ch. 5, 9 | The three-rung degradation strategy under malformed output |
 | [`snippets/schema_registry.py`](snippets/schema_registry.py) | Ch. 9 | A minimal versioned schema registry with `.tass` files as the source of truth |
 | [`snippets/signed_audit_trail.py`](snippets/signed_audit_trail.py) | Ch. 8, 9, 10 | The signed firehose end to end: tamper caught, replay deduped, archive re-verified |
+| [`snippets/tass_logger.py`](snippets/tass_logger.py) | Ch. 11 | TASS as a structured-logging format: stdlib `logging.Formatter` + expand-on-view + byte bill |
+| [`snippets/payload_budgets.py`](snippets/payload_budgets.py) | Ch. 11 | Does the record fit? Exact byte costs vs LoRaWAN/SMS/USSD/QR/NFC/URL budgets, signed & unsigned |
 
 Run any of them from the repository root:
 
