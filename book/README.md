@@ -46,6 +46,7 @@ case studies.
 | 10 | [Case Studies](chapters/10-case-studies.md) | Influencer rates, weather APIs, quantum-device telemetry — end to end |
 | A | [API Reference](chapters/appendix-a-api.md) | Every public class and function, with signatures |
 | B | [Glossary & Bibliography](chapters/appendix-b-glossary.md) | Terms and further reading |
+| C | [Use-Case Catalog](chapters/appendix-c-use-cases.md) | Every use case → its schema, code, and analysis chapter, runnable |
 
 ## Runnable companion code
 
@@ -57,6 +58,7 @@ Each snippet is standalone and referenced from the chapters:
 | [`snippets/end_to_end_pipeline.py`](snippets/end_to_end_pipeline.py) | Ch. 4, 5, 9 | Complete extraction pipeline: compile → (mock) LLM → parse → validate → sign |
 | [`snippets/fallback_ladder.py`](snippets/fallback_ladder.py) | Ch. 5, 9 | The three-rung degradation strategy under malformed output |
 | [`snippets/schema_registry.py`](snippets/schema_registry.py) | Ch. 9 | A minimal versioned schema registry with `.tass` files as the source of truth |
+| [`snippets/signed_audit_trail.py`](snippets/signed_audit_trail.py) | Ch. 8, 9, 10 | The signed firehose end to end: tamper caught, replay deduped, archive re-verified |
 
 Run any of them from the repository root:
 

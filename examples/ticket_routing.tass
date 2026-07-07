@@ -1,0 +1,77 @@
+# ─────────────────────────────────────────────────────────────────────
+# TASS — Tokeniser-Aware Structured Shorthand
+# Example  : Support-ticket intent classification & routing
+# Version  : 1.0
+# DOI      : 10.5281/zenodo.20403219
+# ─────────────────────────────────────────────────────────────────────
+#
+# CONTEXT
+# ───────
+# The canonical interactive TASS workload: every inbound support ticket
+# passes through an LLM that classifies intent, scores urgency, and
+# decides routing — thousands of times a day, same schema every call.
+# This is the schema used throughout the README quickstarts and the
+# book's pipeline/ladder/registry snippets (book/snippets/), now as a
+# reviewable .tass artifact suitable for a schema registry
+# (book/chapters/09-system-design.md §9.4).
+#
+# Latency note: this schema saves ~15 output tokens per call vs JSON —
+# at typical decode rates that is ~0.1–0.3s off every ticket response,
+# which matters more than the money on an interactive path (book Ch. 1).
+# ─────────────────────────────────────────────────────────────────────
+
+@dict
+  ~a = user_intent       # what the customer wants (see @codes)
+  ~b = urgency_level     # integer 1–5, 5 = drop everything
+  ~c = requires_routing  # 1 = escalate past tier-1 | 0 = bot-resolvable
+  ~d = sentiment         # customer tone (see @codes)
+  ~e = product_area      # which product surface (see @codes)
+  ~z = schema_version    # registry version pin (book Ch. 9 §9.4 rule 4)
+@end
+
+@codes
+  # user_intent
+  rf = refund
+  cn = cancellation
+  up = upgrade
+  dg = downgrade
+  bq = billing_question
+  tq = technical_question
+  cp = complaint
+  fb = feedback
+
+  # sentiment
+  ng = negative
+  nu = neutral
+  ps = positive
+  ir = irate            # negative + urgency amplifier; page a human
+
+  # product_area
+  ch = checkout
+  sb = subscriptions
+  ap = api_platform
+  mb = mobile_app
+  ds = dashboard
+@end
+
+@records
+~a:rf ~b:5 ~c:1 ~d:ir ~e:ch ~z:1
+~a:tq ~b:2 ~c:0 ~d:nu ~e:ap ~z:1
+~a:up ~b:1 ~c:0 ~d:ps ~e:sb ~z:1
+~a:cp ~b:4 ~c:1 ~d:ng ~e:mb ~z:1
+~a:bq ~b:2 ~c:0 ~d:nu ~e:ds ~z:1
+@end
+
+# ── PARSED OUTPUT (first record) ─────────────────────────────────────
+# {
+#   user_intent:      "refund",
+#   urgency_level:    "5",
+#   requires_routing: "1",
+#   sentiment:        "irate",
+#   product_area:     "checkout",
+#   schema_version:   "1"
+# }
+#
+# Typed parsing (integers/booleans coerced) uses the schema-as-code
+# path — see book/snippets/end_to_end_pipeline.py.
+# ─────────────────────────────────────────────────────────────────────
