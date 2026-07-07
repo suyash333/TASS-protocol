@@ -30,6 +30,10 @@ case studies.
 
 ---
 
+**📕 Prefer a single file?** The book ships as a built PDF ebook:
+[`TASS-book.pdf`](TASS-book.pdf) (46 pages). Rebuild it anytime with
+`pip install markdown weasyprint && python book/build_pdf.py`.
+
 ## Table of Contents
 
 | # | Chapter | One-line summary |
