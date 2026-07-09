@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TASS Converter — JSON / XML → Tokeniser-Aware Structured Shorthand</title>
+<style>
+:root{
+  --bg:#f3f6f5; --surface:#ffffff; --ink:#1b2523; --muted:#5b6a66;
+  --line:#d7e0dd; --accent:#0f766e; --accent-soft:#e4f1ef; --warn:#b45309;
+  --code-bg:#f6f9f8; --sel:#0f766e22;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0f1517; --surface:#161f22; --ink:#e4eae8; --muted:#8fa19b;
+  --line:#27343a; --accent:#2fb5a3; --accent-soft:#12332f; --warn:#e8a04c;
+  --code-bg:#121a1d; --sel:#2fb5a333;
+}}
+:root[data-theme="dark"]{
+  --bg:#0f1517; --surface:#161f22; --ink:#e4eae8; --muted:#8fa19b;
+  --line:#27343a; --accent:#2fb5a3; --accent-soft:#12332f; --warn:#e8a04c;
+  --code-bg:#121a1d; --sel:#2fb5a333;
+}
+:root[data-theme="light"]{
+  --bg:#f3f6f5; --surface:#ffffff; --ink:#1b2523; --muted:#5b6a66;
+  --line:#d7e0dd; --accent:#0f766e; --accent-soft:#e4f1ef; --warn:#b45309;
+  --code-bg:#f6f9f8; --sel:#0f766e22;
+}
+*{box-sizing:border-box}
+::selection{background:var(--sel)}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;
+  min-height:100vh; display:flex; flex-direction:column;
+}
+.mono{font-family:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace}
+header{
+  display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;
+  padding:18px 24px 14px; border-bottom:1px solid var(--line);
+}
+.mark{font-family:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+  font-size:22px; font-weight:700; letter-spacing:-.5px}
+.mark .tilde{color:var(--accent)}
+header .sub{color:var(--muted); font-size:13px}
+header a{color:var(--accent); text-decoration:none}
+header a:hover{text-decoration:underline}
+.toolbar{
+  display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+  padding:10px 24px; border-bottom:1px solid var(--line); background:var(--surface);
+}
+.group{display:flex; align-items:center; gap:8px}
+.group>span{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted)}
+.seg{display:flex; border:1px solid var(--line); border-radius:6px; overflow:hidden}
+.seg button{
+  border:0; background:transparent; color:var(--muted); padding:5px 12px;
+  font:600 12px/1 system-ui,sans-serif; cursor:pointer;
+}
+.seg button[aria-pressed="true"]{background:var(--accent); color:#fff}
+.seg button:focus-visible{outline:2px solid var(--accent); outline-offset:-2px}
+label.opt{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--ink); cursor:pointer}
+label.opt input{accent-color:var(--accent)}
+.samples{margin-left:auto; display:flex; gap:8px}
+.btn{
+  border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  border-radius:6px; padding:5px 12px; font:600 12px/1.2 system-ui,sans-serif; cursor:pointer;
+}
+.btn:hover{border-color:var(--accent); color:var(--accent)}
+.btn:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+.btn.primary{background:var(--accent); border-color:var(--accent); color:#fff}
+.btn.primary:hover{color:#fff; filter:brightness(1.08)}
+main{
+  flex:1; display:grid; grid-template-columns:1fr 1fr; gap:16px;
+  padding:16px 24px; min-height:0;
+}
+@media (max-width:900px){ main{grid-template-columns:1fr} }
+.pane{
+  display:flex; flex-direction:column; min-width:0; min-height:340px;
+  background:var(--surface); border:1px solid var(--line); border-radius:8px; overflow:hidden;
+}
+.pane-head{
+  display:flex; align-items:center; gap:10px; padding:8px 12px;
+  border-bottom:1px solid var(--line); font-size:12px; color:var(--muted);
+}
+.pane-head .title{font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--ink)}
+.pane-head .spacer{flex:1}
+.tabs{display:flex; gap:2px}
+.tabs button{
+  border:0; background:transparent; color:var(--muted); padding:4px 10px;
+  border-radius:5px; font:600 12px/1.2 system-ui,sans-serif; cursor:pointer;
+}
+.tabs button[aria-pressed="true"]{background:var(--accent-soft); color:var(--accent)}
+.tabs button:focus-visible{outline:2px solid var(--accent); outline-offset:-2px}
+textarea, .out{
+  flex:1; width:100%; border:0; resize:none; padding:12px 14px; margin:0;
+  background:var(--code-bg); color:var(--ink);
+  font:12.5px/1.55 ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+  white-space:pre; overflow:auto; tab-size:2;
+}
+textarea:focus{outline:none; box-shadow:inset 0 0 0 2px var(--accent)}
+.out{user-select:text}
+.error{
+  padding:8px 14px; font-size:12.5px; color:var(--warn);
+  border-top:1px solid var(--line); display:none; background:var(--surface);
+}
+.error.show{display:block}
+.stats{
+  display:flex; gap:0; flex-wrap:wrap; border-top:1px solid var(--line);
+  background:var(--surface); padding:0 24px;
+}
+.stat{
+  padding:12px 22px 14px 0; margin-right:22px; display:flex; flex-direction:column; gap:2px;
+}
+.stat .k{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted)}
+.stat .v{font-size:20px; font-weight:700; font-variant-numeric:tabular-nums;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace}
+.stat .v small{font-size:12px; font-weight:500; color:var(--muted)}
+.stat.save .v{color:var(--accent)}
+.note{align-self:center; margin-left:auto; font-size:11.5px; color:var(--muted); max-width:340px}
+footer{
+  padding:10px 24px 16px; border-top:1px solid var(--line);
+  font-size:12px; color:var(--muted);
+}
+footer a{color:var(--accent); text-decoration:none}
+footer a:hover{text-decoration:underline}
+.toast{
+  position:fixed; bottom:18px; left:50%; transform:translateX(-50%);
+  background:var(--ink); color:var(--bg); padding:8px 16px; border-radius:6px;
+  font-size:13px; opacity:0; transition:opacity .18s; pointer-events:none;
+}
+@media (prefers-reduced-motion: reduce){ .toast{transition:none} }
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="mark"><span class="tilde">~</span>TASS converter</div>
+  <div class="sub">JSON / XML → Tokeniser-Aware Structured Shorthand · runs entirely in your browser</div>
+  <div class="sub" style="margin-left:auto">
+    <a href="https://github.com/suyash333/TASS-protocol">protocol repo</a> ·
+    <a href="https://doi.org/10.5281/zenodo.20403219">white paper</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="group"><span>Input</span>
+    <div class="seg" role="group" aria-label="Input format">
+      <button id="fmt-auto" aria-pressed="true">Auto</button>
+      <button id="fmt-json" aria-pressed="false">JSON</button>
+      <button id="fmt-xml" aria-pressed="false">XML</button>
+    </div>
+  </div>
+  <label class="opt"><input type="checkbox" id="opt-codes" checked>
+    Generate <span class="mono">@codes</span> for repeated strings</label>
+  <label class="opt"><input type="checkbox" id="opt-ksuffix" checked>
+    <span class="mono">k</span>-suffix round thousands</label>
+  <div class="samples">
+    <button class="btn" id="sample-json">Sample JSON</button>
+    <button class="btn" id="sample-xml">Sample XML</button>
+  </div>
+</div>
+
+<main>
+  <section class="pane" aria-label="Input">
+    <div class="pane-head">
+      <span class="title">Input</span>
+      <span id="in-detect"></span>
+      <span class="spacer"></span>
+      <span id="in-bytes" class="mono"></span>
+    </div>
+    <textarea id="input" spellcheck="false" autocapitalize="off"
+      placeholder='Paste JSON (object, or array of same-shape objects) or XML here…'></textarea>
+    <div class="error" id="error" role="alert"></div>
+  </section>
+
+  <section class="pane" aria-label="Output">
+    <div class="pane-head">
+      <span class="title">TASS</span>
+      <div class="tabs" role="group" aria-label="Output view">
+        <button id="tab-file" aria-pressed="true">.tass file</button>
+        <button id="tab-records" aria-pressed="false">records</button>
+        <button id="tab-prompt" aria-pressed="false">system prompt</button>
+      </div>
+      <span class="spacer"></span>
+      <button class="btn" id="copy">Copy</button>
+      <button class="btn primary" id="download">Download .tass</button>
+    </div>
+    <div class="out" id="output" tabindex="0"></div>
+  </section>
+</main>
+
+<div class="stats">
+  <div class="stat"><span class="k">Input size</span>
+    <span class="v" id="st-in">—</span></div>
+  <div class="stat"><span class="k">TASS records size</span>
+    <span class="v" id="st-out">—</span></div>
+  <div class="stat save"><span class="k">Bytes saved</span>
+    <span class="v" id="st-bytes">—</span></div>
+  <div class="stat save"><span class="k">Est. output tokens</span>
+    <span class="v" id="st-tokens">—</span></div>
+  <div class="note">Token estimate uses whitespace/punctuation splitting (±10–15%).
+    For exact BPE counts run <span class="mono">tass benchmark</span> from the CLI.</div>
+</div>
+
+<footer>
+  Everything stays on this page — nothing is uploaded. The generated
+  <span class="mono">@dict</span> goes in your (cached) system prompt; parse responses with
+  <span class="mono">pip install tass-protocol</span> or <span class="mono">tass.js</span>.
+</footer>
+
+<div class="toast" id="toast" aria-live="polite"></div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ── symbol pool & helpers ──────────────────────────────────────────── */
+const POOL = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+const isNumStr = s => /^-?\d+(\.\d+)?$/.test(s);
+const approxTokens = t => (t.match(/[~\w]+|[^\w\s]/g) || []).length;
+const fmtBytes = n => n >= 1024 ? (n/1024).toFixed(1) + " KB" : n + " B";
+
+/* ── flatten one object: nested keys → dot paths ────────────────────── */
+function flatten(obj, prefix, out){
+  out = out || {};
+  for (const [k, v] of Object.entries(obj)){
+    const key = prefix ? prefix + "." + k : k;
+    if (v !== null && typeof v === "object" && !Array.isArray(v)){
+      flatten(v, key, out);
+    } else if (Array.isArray(v)){
+      if (v.every(x => typeof x !== "object")) out[key] = v.join(",");
+      else v.forEach((x, i) => flatten(x, key + "." + i, out));
+    } else {
+      out[key] = v;
+    }
+  }
+  return out;
+}
+
+/* ── normalize input into a list of flat records ────────────────────── */
+function toRecords(data){
+  if (Array.isArray(data)) return data.map(r =>
+    (r !== null && typeof r === "object") ? flatten(r) : { value: r });
+  if (data !== null && typeof data === "object"){
+    // A lone array-of-objects field means "these are the records"
+    const keys = Object.keys(data);
+    const arrKeys = keys.filter(k => Array.isArray(data[k]) &&
+      data[k].length && data[k].every(x => x && typeof x === "object"));
+    if (arrKeys.length === 1 && keys.length === 1)
+      return data[arrKeys[0]].map(r => flatten(r));
+    return [flatten(data)];
+  }
+  return [{ value: data }];
+}
+
+/* ── XML → object (attributes and children become fields) ───────────── */
+function xmlToObj(node){
+  const obj = {};
+  for (const a of node.attributes || []) obj[a.name] = a.value;
+  const children = [...node.children];
+  if (!children.length){
+    const text = node.textContent.trim();
+    if (!Object.keys(obj).length) return text;
+    if (text) obj._text = text;
+    return obj;
+  }
+  const byName = {};
+  for (const c of children) (byName[c.tagName] = byName[c.tagName] || []).push(c);
+  for (const [name, nodes] of Object.entries(byName)){
+    const vals = nodes.map(xmlToObj);
+    obj[name] = vals.length === 1 ? vals[0] : vals;
+  }
+  return obj;
+}
+
+/* ── type inference across records ──────────────────────────────────── */
+function inferType(values){
+  const defined = values.filter(v => v !== undefined && v !== null && v !== "");
+  if (!defined.length) return "string";
+  if (defined.every(v => typeof v === "boolean" ||
+      /^(true|false)$/i.test(String(v)))) return "boolean";
+  if (defined.every(v => typeof v === "number" || isNumStr(String(v)))){
+    return defined.every(v => Number.isInteger(Number(v))) ? "integer" : "float";
+  }
+  return "string";
+}
+
+/* ── codes generation: enum-ish string fields → 2-char codes ────────── */
+function buildCodes(fields, records){
+  const codes = {}, used = new Set();
+  for (const f of fields){
+    if (f.type !== "string") continue;
+    const vals = [...new Set(records.map(r => r[f.name])
+      .filter(v => v !== undefined && v !== null && v !== ""))].map(String);
+    const repeatedEnough = records.length > 1 &&
+      vals.length < records.map(r => r[f.name]).filter(v => v).length;
+    if (!vals.length || vals.length > 8 || !repeatedEnough) continue;
+    if (!vals.every(v => /^[A-Za-z_ -]{4,24}$/.test(v))) continue; // wordish values only
+    for (const v of vals){
+      const clean = v.toLowerCase().replace(/[^a-z]/g, "");
+      let code = null;
+      const cands = [clean.slice(0,2),
+        clean[0] + (clean.split(/[_ -]/)[1] || "").slice(0,1),
+        clean[0] + clean.slice(-1)];
+      for (const c of cands) if (c.length === 2 && !used.has(c)){ code = c; break; }
+      if (!code){ // fall back: first letter + digit
+        for (let i = 2; i < 10 && !code; i++)
+          if (!used.has(clean[0] + i)) code = clean[0] + i;
+      }
+      if (code){ used.add(code); codes[v] = code; }
+    }
+  }
+  return codes; // maps full value → code
+}
+
+/* ── value rendering ─────────────────────────────────────────────────── */
+function renderValue(v, type, codes, useK){
+  if (v === undefined || v === null || v === "") return "-";
+  if (type === "boolean") return (v === true || /^true$/i.test(String(v))) ? "1" : "0";
+  if (type === "integer" && useK){
+    const n = Number(v);
+    if (Number.isInteger(n) && Math.abs(n) >= 1000 && n % 1000 === 0)
+      return (n/1000) + "k";
+  }
+  let s = String(v);
+  if (codes[s]) return codes[s];
+  s = s.replace(/\s+/g, "_");                    // TASS values cannot hold spaces
+  return s;
+}
+
+/* ── main conversion ─────────────────────────────────────────────────── */
+function convert(text, format, wantCodes, useK){
+  let data;
+  if (format === "xml"){
+    const doc = new DOMParser().parseFromString(text, "application/xml");
+    const err = doc.querySelector("parsererror");
+    if (err) throw new Error("XML parse error: " + err.textContent.split("\n")[0]);
+    const root = xmlToObj(doc.documentElement);
+    data = root;
+  } else {
+    data = JSON.parse(text);
+  }
+
+  const records = toRecords(data);
+  if (!records.length) throw new Error("No records found in input.");
+
+  // Collect field order: first appearance across records
+  const fieldNames = [];
+  for (const r of records) for (const k of Object.keys(r))
+    if (!fieldNames.includes(k)) fieldNames.push(k);
+  if (fieldNames.length > POOL.length)
+    throw new Error(`Schema has ${fieldNames.length} fields; the single-char pool supports ${POOL.length}. Split the schema.`);
+
+  const fields = fieldNames.map((name, i) => ({
+    name, sym: POOL[i],
+    type: inferType(records.map(r => r[name])),
+  }));
+
+  const valueToCode = wantCodes ? buildCodes(fields, records) : {};
+
+  const recLines = records.map(r =>
+    fields.map(f => "~" + f.sym + ":" + renderValue(r[f.name], f.type, valueToCode, useK))
+          .join(" "));
+
+  // .tass file
+  const safeName = n => n.replace(/[^\w.]/g, "_");
+  let file = "# Generated by the TASS converter — github.com/suyash333/TASS-protocol\n\n@dict\n";
+  for (const f of fields)
+    file += `  ~${f.sym} = ${safeName(f.name)}   # ${f.type}\n`;
+  file += "@end\n";
+  const codeEntries = Object.entries(valueToCode);
+  if (codeEntries.length){
+    file += "\n@codes\n";
+    for (const [full, code] of codeEntries) file += `  ${code} = ${full}\n`;
+    file += "@end\n";
+  }
+  file += "\n@records\n" + recLines.join("\n") + "\n@end\n";
+
+  // system prompt
+  let prompt = "You are a data extraction engine.\n" +
+    "Output ONLY the TASS format below. No prose. No markdown. No explanation.\n" +
+    "Format: " + fields.map(f => `~${f.sym}:<value>`).join(" ") + "\nDictionary:\n" +
+    fields.map(f => `  ~${f.sym} = ${safeName(f.name)}`).join("\n");
+  if (codeEntries.length)
+    prompt += "\nValue codes:\n" +
+      codeEntries.map(([full, code]) => `  ${code} = ${full}`).join("\n");
+
+  return { file, records: recLines.join("\n"), prompt };
+}
+
+/* ── UI wiring ───────────────────────────────────────────────────────── */
+let state = { format: "auto", tab: "file", result: null };
+
+function detectFormat(t){
+  const s = t.trimStart();
+  return s.startsWith("<") ? "xml" : "json";
+}
+
+function run(){
+  const text = $("input").value;
+  const err = $("error");
+  err.classList.remove("show");
+  if (!text.trim()){
+    state.result = null; render(); return;
+  }
+  const fmt = state.format === "auto" ? detectFormat(text) : state.format;
+  $("in-detect").textContent = state.format === "auto" ? `detected: ${fmt}` : "";
+  try {
+    state.result = convert(text, fmt, $("opt-codes").checked, $("opt-ksuffix").checked);
+  } catch (e){
+    state.result = null;
+    err.textContent = e.message;
+    err.classList.add("show");
+  }
+  render();
+}
+
+function render(){
+  const r = state.result;
+  $("output").textContent = r ? r[state.tab === "file" ? "file" :
+    state.tab === "records" ? "records" : "prompt"] : "";
+  const inText = $("input").value;
+  $("in-bytes").textContent = inText ? fmtBytes(new Blob([inText]).size) : "";
+  if (r){
+    const inB = new Blob([inText]).size, outB = new Blob([r.records]).size;
+    const inTok = approxTokens(inText), outTok = approxTokens(r.records);
+    $("st-in").textContent = fmtBytes(inB);
+    $("st-out").textContent = fmtBytes(outB);
+    const pctB = inB ? Math.round((inB - outB)/inB*100) : 0;
+    $("st-bytes").innerHTML = `${fmtBytes(Math.max(inB-outB,0))} <small>↓${Math.max(pctB,0)}%</small>`;
+    const pctT = inTok ? Math.round((inTok - outTok)/inTok*100) : 0;
+    $("st-tokens").innerHTML = `${outTok} <small>vs ${inTok} · ↓${Math.max(pctT,0)}%</small>`;
+  } else {
+    for (const id of ["st-in","st-out","st-bytes","st-tokens"]) $(id).textContent = "—";
+  }
+}
+
+let debounce;
+$("input").addEventListener("input", () => { clearTimeout(debounce); debounce = setTimeout(run, 200); });
+
+for (const f of ["auto","json","xml"])
+  $("fmt-"+f).addEventListener("click", () => {
+    state.format = f;
+    for (const g of ["auto","json","xml"])
+      $("fmt-"+g).setAttribute("aria-pressed", String(g === f));
+    run();
+  });
+
+for (const t of ["file","records","prompt"])
+  $("tab-"+t).addEventListener("click", () => {
+    state.tab = t;
+    for (const g of ["file","records","prompt"])
+      $("tab-"+g).setAttribute("aria-pressed", String(g === t));
+    render();
+  });
+
+$("opt-codes").addEventListener("change", run);
+$("opt-ksuffix").addEventListener("change", run);
+
+function toast(msg){
+  const el = $("toast");
+  el.textContent = msg; el.classList.add("show");
+  setTimeout(() => el.classList.remove("show"), 1600);
+}
+
+$("copy").addEventListener("click", async () => {
+  if (!state.result) return;
+  await navigator.clipboard.writeText($("output").textContent);
+  toast("Copied");
+});
+
+$("download").addEventListener("click", () => {
+  if (!state.result) return;
+  const blob = new Blob([state.result.file], {type: "text/plain"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "converted.tass";
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast("Downloaded converted.tass");
+});
+
+/* ── samples ─────────────────────────────────────────────────────────── */
+$("sample-json").addEventListener("click", () => {
+  $("input").value = JSON.stringify([
+    {tier:"micro", followers:45000, engagement:4.2, rate_low:18000, rate_high:42000, gst:false, city:"metro"},
+    {tier:"micro", followers:22000, engagement:6.1, rate_low:9000,  rate_high:22000, gst:false, city:"tier_two"},
+    {tier:"mid",   followers:180000,engagement:2.8, rate_low:55000, rate_high:130000,gst:true,  city:"metro"},
+    {tier:"nano",  followers:4000,  engagement:9.3, rate_low:3000,  rate_high:8000,  gst:false, city:"tier_two"},
+    {tier:"macro", followers:820000,engagement:1.9, rate_low:280000,rate_high:650000,gst:true,  city:"metro"}
+  ], null, 2);
+  state.format = "auto"; run();
+});
+
+$("sample-xml").addEventListener("click", () => {
+  $("input").value =
+`<fleet>
+  <sensor node="a3"><temp>23.4</temp><moisture>31</moisture><ph>6.8</ph><battery>87</battery><status>nominal</status></sensor>
+  <sensor node="a7"><temp>24.1</temp><moisture>28</moisture><ph>6.9</ph><battery>64</battery><status>nominal</status></sensor>
+  <sensor node="b2"><temp>21.8</temp><moisture>44</moisture><ph>7.1</ph><battery>18</battery><status>low_battery</status></sensor>
+  <sensor node="b5"><temp>22.0</temp><moisture>41</moisture><ph>5.2</ph><battery>71</battery><status>sensor_drift</status></sensor>
+</fleet>`;
+  state.format = "auto"; run();
+});
+</script>
+</body>
+</html>
