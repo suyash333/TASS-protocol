@@ -177,10 +177,21 @@ class TASSParser:
             return v.lower() in ("true", "1", "yes")
 
         if type_hint == "integer":
-            return int(self._expand_k(v))
+            try:
+                # via float so "5.0" (a common model deviation) coerces to 5
+                return int(float(self._expand_k(v)))
+            except ValueError:
+                raise TASSParseError(
+                    f"Cannot coerce {v!r} to integer"
+                ) from None
 
         if type_hint == "float":
-            return float(self._expand_k(v))
+            try:
+                return float(self._expand_k(v))
+            except ValueError:
+                raise TASSParseError(
+                    f"Cannot coerce {v!r} to float"
+                ) from None
 
         # string — return as-is (may still be a numeric code like "mc")
         return v
