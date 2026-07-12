@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TASS SoundLink — signed records over sound (MFSK acoustic modem)</title>
+<style>
+:root{
+  --bg:#f3f6f5; --surface:#ffffff; --ink:#1b2523; --muted:#5b6a66;
+  --line:#d7e0dd; --accent:#0f766e; --accent-soft:#e4f1ef; --warn:#b45309;
+  --bad:#b91c1c; --bad-soft:#fdeaea; --good-soft:#e4f1ef;
+  --code-bg:#f6f9f8; --sel:#0f766e22;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0f1517; --surface:#161f22; --ink:#e4eae8; --muted:#8fa19b;
+  --line:#27343a; --accent:#2fb5a3; --accent-soft:#12332f; --warn:#e8a04c;
+  --bad:#f87171; --bad-soft:#3a1a1a; --good-soft:#12332f;
+  --code-bg:#121a1d; --sel:#2fb5a333;
+}}
+:root[data-theme="dark"]{
+  --bg:#0f1517; --surface:#161f22; --ink:#e4eae8; --muted:#8fa19b;
+  --line:#27343a; --accent:#2fb5a3; --accent-soft:#12332f; --warn:#e8a04c;
+  --bad:#f87171; --bad-soft:#3a1a1a; --good-soft:#12332f;
+  --code-bg:#121a1d; --sel:#2fb5a333;
+}
+:root[data-theme="light"]{
+  --bg:#f3f6f5; --surface:#ffffff; --ink:#1b2523; --muted:#5b6a66;
+  --line:#d7e0dd; --accent:#0f766e; --accent-soft:#e4f1ef; --warn:#b45309;
+  --bad:#b91c1c; --bad-soft:#fdeaea; --good-soft:#e4f1ef;
+  --code-bg:#f6f9f8; --sel:#0f766e22;
+}
+*{box-sizing:border-box}
+::selection{background:var(--sel)}
+body{margin:0; background:var(--bg); color:var(--ink);
+  font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;
+  min-height:100vh; display:flex; flex-direction:column}
+.mono{font-family:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace}
+header{display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;
+  padding:18px 24px 14px; border-bottom:1px solid var(--line)}
+.mark{font-family:ui-monospace,"SF Mono",Menlo,monospace; font-size:22px;
+  font-weight:700; letter-spacing:-.5px}
+.mark .tilde{color:var(--accent)}
+header .sub{color:var(--muted); font-size:13px}
+header a{color:var(--accent); text-decoration:none}
+header a:hover{text-decoration:underline}
+.how{padding:10px 24px; border-bottom:1px solid var(--line); background:var(--surface);
+  font-size:12.5px; color:var(--muted); display:flex; gap:26px; flex-wrap:wrap}
+.how b{color:var(--ink); font-weight:600}
+main{flex:1; display:grid; grid-template-columns:1fr 1fr; gap:16px;
+  padding:16px 24px; align-items:start}
+@media (max-width:900px){ main{grid-template-columns:1fr} }
+.pane{display:flex; flex-direction:column; background:var(--surface);
+  border:1px solid var(--line); border-radius:8px; overflow:hidden}
+.pane-head{display:flex; align-items:center; gap:10px; padding:10px 14px;
+  border-bottom:1px solid var(--line)}
+.pane-head .title{font-weight:700; text-transform:uppercase;
+  letter-spacing:.08em; font-size:12px}
+.pane-head .spacer{flex:1}
+.body{padding:14px; display:flex; flex-direction:column; gap:12px}
+label.f{display:flex; flex-direction:column; gap:4px; font-size:11px;
+  text-transform:uppercase; letter-spacing:.08em; color:var(--muted)}
+textarea, input[type=text], input[type=password]{
+  border:1px solid var(--line); border-radius:6px; background:var(--code-bg);
+  color:var(--ink); padding:9px 11px;
+  font:12.5px/1.5 ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+textarea{resize:vertical; min-height:64px; white-space:pre; overflow-x:auto}
+textarea:focus, input:focus{outline:2px solid var(--accent); outline-offset:-1px}
+.btn{border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  border-radius:6px; padding:8px 16px; font:600 13px/1.2 system-ui,sans-serif; cursor:pointer}
+.btn:hover{border-color:var(--accent); color:var(--accent)}
+.btn:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+.btn.primary{background:var(--accent); border-color:var(--accent); color:#fff}
+.btn.primary:hover{color:#fff; filter:brightness(1.08)}
+.btn.stop{background:var(--warn); border-color:var(--warn); color:#fff}
+.btn[disabled]{opacity:.5; cursor:default}
+.row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+.meta{font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums}
+.wire{background:var(--code-bg); border:1px solid var(--line); border-radius:6px;
+  padding:9px 11px; font:12.5px/1.5 ui-monospace,"SF Mono",Menlo,monospace;
+  white-space:pre-wrap; word-break:break-all; min-height:40px;
+  text-transform:none; letter-spacing:normal; color:var(--ink)}
+label.f table.kv, label.f .wire{text-transform:none; letter-spacing:normal}
+table.kv td{text-transform:none; letter-spacing:normal; color:var(--ink)}
+.badge{display:inline-flex; align-items:center; gap:6px; border-radius:999px;
+  padding:3px 12px; font:700 12px/1.6 system-ui,sans-serif}
+.badge.ok{background:var(--good-soft); color:var(--accent)}
+.badge.bad{background:var(--bad-soft); color:var(--bad)}
+.badge.idle{background:var(--code-bg); color:var(--muted)}
+canvas{width:100%; height:64px; display:block; background:var(--code-bg);
+  border:1px solid var(--line); border-radius:6px}
+table.kv{border-collapse:collapse; font-size:12.5px; width:100%}
+table.kv td{border:1px solid var(--line); padding:4px 9px;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace}
+table.kv td:first-child{color:var(--muted); width:38%}
+footer{padding:12px 24px 16px; border-top:1px solid var(--line);
+  font-size:12px; color:var(--muted)}
+footer a{color:var(--accent); text-decoration:none}
+.notice{font-size:12px; color:var(--warn); display:none}
+.notice.show{display:block}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="mark"><span class="tilde">~</span>TASS SoundLink</div>
+  <div class="sub">signed TASS records over sound — 16-tone MFSK acoustic modem, entirely in your browser</div>
+  <div class="sub" style="margin-left:auto">
+    <a href="index.html">converter</a> ·
+    <a href="https://github.com/suyash333/TASS-protocol">protocol repo</a>
+  </div>
+</header>
+
+<div class="how">
+  <span><b>1 · Sign</b> — record is canonicalized and MAC-tagged (<span class="mono">~!:</span>) with your shared passphrase</span>
+  <span><b>2 · Transmit</b> — bytes become 4-bit tones, 1800–4050&nbsp;Hz, 64&nbsp;ms/symbol ≈ 7.8&nbsp;B/s</span>
+  <span><b>3 · Receive</b> — another device listens, decodes, and verifies the MAC before trusting the record</span>
+</div>
+
+<main>
+  <section class="pane" aria-label="Transmit">
+    <div class="pane-head"><span class="title">▶ Transmit</span>
+      <span class="spacer"></span><span class="meta" id="tx-meta"></span></div>
+    <div class="body">
+      <label class="f">TASS record
+        <textarea id="tx-record" spellcheck="false">~n:a3 ~t:23.4 ~m:31 ~p:6.8 ~b:87 ~s:ok</textarea>
+      </label>
+      <label class="f">Shared passphrase (both devices)
+        <input type="text" id="tx-pass" value="demo-secret" autocomplete="off">
+      </label>
+      <div class="row">
+        <button class="btn primary" id="tx-send">Sign &amp; Transmit 🔊</button>
+        <button class="btn" id="tx-sign-only">Sign only</button>
+        <span class="meta" id="tx-status"></span>
+      </div>
+      <label class="f">Signed wire line (what actually plays)
+        <div class="wire mono" id="tx-wire"></div>
+      </label>
+    </div>
+  </section>
+
+  <section class="pane" aria-label="Receive">
+    <div class="pane-head"><span class="title">◉ Receive</span>
+      <span class="spacer"></span><span class="badge idle" id="rx-badge">idle</span></div>
+    <div class="body">
+      <label class="f">Shared passphrase
+        <input type="text" id="rx-pass" value="demo-secret" autocomplete="off">
+      </label>
+      <div class="row">
+        <button class="btn primary" id="rx-listen">Listen 🎙</button>
+        <button class="btn stop" id="rx-stop" disabled>Stop</button>
+        <span class="meta" id="rx-status"></span>
+      </div>
+      <canvas id="spectrum" width="600" height="64" aria-label="Live spectrum"></canvas>
+      <div class="notice" id="rx-notice"></div>
+      <label class="f">Decoded wire line
+        <div class="wire mono" id="rx-wire"></div>
+      </label>
+      <label class="f">Parsed record
+        <div id="rx-parsed"><table class="kv"><tbody id="rx-kv"></tbody></table></div>
+      </label>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Use two devices (or two browser tabs on one machine with the volume up).
+  Sound is a broadcast, spoofable medium — the <span class="mono">~!</span> MAC is what
+  lets the receiver trust what it heard. Demo uses HMAC-SHA-256 via WebCrypto
+  (the Python library uses HMAC-SHA3-256; same construction). Full protocol details:
+  <a href="https://github.com/suyash333/TASS-protocol/blob/main/book/chapters/11-beyond-llm.md">book, chapter 11</a>.
+</footer>
+
+<script>
+"use strict";
+/* ══════════════ MODEM-CORE-BEGIN (pure functions — no DOM) ══════════════ */
+const SL = {
+  T: 0.064,            // seconds per symbol
+  HOP: 0.016,          // classifier hop
+  WIN: 0.032,          // Goertzel window
+  F0: 1800, DF: 150,   // data tones: nibble n → F0 + DF·n  (1800…4050 Hz)
+  SYNC: 1550, END: 4300,
+  SYNC_SYMS: 8, END_SYMS: 3,
+  RAMP: 0.008, AMP: 0.6,
+};
+const slFreq = n => SL.F0 + SL.DF * n;
+
+function slBytesToTones(bytes){
+  const tones = [];
+  for (let k = 0; k < SL.SYNC_SYMS; k++) tones.push(SL.SYNC);
+  const nib = [];
+  const push = b => { nib.push((b >> 4) & 15, b & 15); };
+  push(bytes.length & 255);
+  let x = bytes.length & 255;
+  for (const b of bytes){ push(b); x ^= b; }
+  push(x);                                  // XOR checksum for framing sanity
+  for (const n of nib) tones.push(slFreq(n));
+  for (let k = 0; k < SL.END_SYMS; k++) tones.push(SL.END);
+  return tones;
+}
+
+function slSynth(bytes, rate){
+  const tones = slBytesToTones(bytes);
+  const N = Math.round(SL.T * rate), rN = Math.round(SL.RAMP * rate);
+  const out = new Float32Array(tones.length * N);
+  for (let s = 0; s < tones.length; s++){
+    const w = 2 * Math.PI * tones[s] / rate;
+    for (let i = 0; i < N; i++){
+      let env = 1;
+      if (i < rN) env = 0.5 * (1 - Math.cos(Math.PI * i / rN));
+      else if (i > N - rN) env = 0.5 * (1 - Math.cos(Math.PI * (N - i) / rN));
+      out[s * N + i] = SL.AMP * env * Math.sin(w * i);
+    }
+  }
+  return out;
+}
+
+function slGoertzel(buf, start, len, freq, rate){
+  const w = 2 * Math.PI * freq / rate, coeff = 2 * Math.cos(w);
+  let s1 = 0, s2 = 0;
+  for (let i = 0; i < len; i++){
+    const s0 = buf[start + i] + coeff * s1 - s2;
+    s2 = s1; s1 = s0;
+  }
+  return s1 * s1 + s2 * s2 - coeff * s1 * s2;
+}
+
+/* classify one window → 0-15 nibble, 16=SYNC, 17=END, -1=noise/silence */
+function slClassify(buf, start, len, rate){
+  let best = -1, bestP = 0, sum = 0;
+  for (let c = 0; c < 18; c++){
+    const f = c < 16 ? slFreq(c) : (c === 16 ? SL.SYNC : SL.END);
+    const p = slGoertzel(buf, start, len, f, rate);
+    sum += p;
+    if (p > bestP){ bestP = p; best = c; }
+  }
+  const avgRest = (sum - bestP) / 17;
+  return (bestP > 20 * avgRest && bestP > 1e-4 * len) ? best : -1;
+}
+
+/* Streaming demodulator: feed() sample chunks; returns bytes once per frame. */
+class SLDemod {
+  constructor(rate){
+    this.rate = rate;
+    this.hopN = Math.round(SL.HOP * rate);
+    this.winN = Math.round(SL.WIN * rate);
+    this.buf = new Float32Array(0);
+    this.hops = [];          // classification per hop
+    this.done = false;
+  }
+  feed(chunk){
+    const merged = new Float32Array(this.buf.length + chunk.length);
+    merged.set(this.buf); merged.set(chunk, this.buf.length);
+    this.buf = merged;
+    while ((this.hops.length + 1) * this.hopN + this.winN <= this.buf.length){
+      this.hops.push(slClassify(this.buf, this.hops.length * this.hopN,
+                                this.winN, this.rate));
+    }
+    return this.done ? null : this._try();
+  }
+  _try(){
+    const H = this.hops, hopsPerSym = SL.T / SL.HOP;   // 4
+    // 1. find a solid SYNC run
+    let run = 0, edge = -1;
+    for (let i = 0; i < H.length; i++){
+      if (H[i] === 16){ run++; continue; }
+      if (run >= hopsPerSym * (SL.SYNC_SYMS - 2)){
+        if (H[i] === -1) continue;         // boundary blur — hold the run
+        edge = i; break;                   // first classified data hop
+      }
+      run = 0;
+    }
+    if (edge < 0) return null;
+    // 2. sample symbols at fixed clock from the edge
+    const bytes = [];
+    let nHi = -1;
+    for (let k = 0; ; k++){
+      const c0 = edge + Math.round(k * hopsPerSym);
+      const cm = c0 + Math.floor(hopsPerSym / 2);
+      if (cm + 1 >= H.length) return null;              // need more audio
+      const votes = [H[cm - 1], H[cm], H[cm + 1]].filter(v => v >= 0);
+      if (!votes.length) return null;
+      const cls = votes.sort((a, b) =>
+        votes.filter(x => x === a).length - votes.filter(x => x === b).length).pop();
+      if (cls === 17) break;                            // END marker
+      if (cls === 16) return null;                      // stray sync → wait
+      if (k > 1060) { this._reset(edge); return null; } // runaway guard
+      if (nHi < 0) nHi = cls;
+      else { bytes.push((nHi << 4) | cls); nHi = -1; }
+    }
+    // 3. frame check: length + checksum
+    if (bytes.length < 2) { this._reset(edge); return null; }
+    const len = bytes[0], payload = bytes.slice(1, 1 + len), ck = bytes[1 + len];
+    let x = len; for (const b of payload) x ^= b;
+    if (payload.length !== len || x !== ck){ this._reset(edge); return null; }
+    this.done = true;
+    return Uint8Array.from(payload);
+  }
+  _reset(afterHop){ this.hops = this.hops.slice(afterHop); this.buf = this.buf.slice(afterHop * this.hopN); }
+}
+
+/* ── TASS canonicalize + HMAC tag (WebCrypto; Node 18+ compatible) ────── */
+function slCanonicalize(line){
+  return line.trim().split(/\s+/)
+    .filter(t => t.startsWith("~") && t.includes(":"))
+    .map(t => t.slice(1))
+    .filter(t => !t.startsWith("!:"))
+    .map(t => { const i = t.indexOf(":"); return [t.slice(0, i), t.slice(i + 1)]; })
+    .sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)
+    .map(([k, v]) => "~" + k + ":" + v).join(" ");
+}
+const slB64u = u8 => btoa(String.fromCharCode(...u8))
+  .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+
+async function slKey(pass, context){
+  const enc = new TextEncoder();
+  const km = await crypto.subtle.importKey("raw", enc.encode(pass), "HKDF", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    { name: "HKDF", hash: "SHA-256", salt: enc.encode("tass-soundlink-v1"),
+      info: enc.encode(context) },
+    km, { name: "HMAC", hash: "SHA-256", length: 256 }, false, ["sign"]);
+}
+async function slTag(line, key){
+  const mac = await crypto.subtle.sign("HMAC", key,
+    new TextEncoder().encode(slCanonicalize(line)));
+  return slB64u(new Uint8Array(mac).slice(0, 8));      // 64-bit demo tag
+}
+async function slSign(line, key){ return line.trim() + " ~!:" + await slTag(line, key); }
+async function slVerify(line, key){
+  const m = line.match(/~!:([A-Za-z0-9_-]+)/);
+  if (!m) return false;
+  const expect = await slTag(line, key);
+  if (m[1].length !== expect.length) return false;
+  let diff = 0;
+  for (let i = 0; i < expect.length; i++) diff |= m[1].charCodeAt(i) ^ expect.charCodeAt(i);
+  return diff === 0;
+}
+/* ══════════════ MODEM-CORE-END ══════════════ */
+
+/* ── page wiring ──────────────────────────────────────────────────────── */
+if (typeof document !== "undefined") (function(){
+const $ = id => document.getElementById(id);
+let ctx = null;
+const audio = () => (ctx = ctx || new (window.AudioContext || window.webkitAudioContext)());
+
+/* Transmit */
+async function buildSigned(){
+  const line = $("tx-record").value.trim();
+  if (!line) throw new Error("Enter a TASS record first.");
+  const key = await slKey($("tx-pass").value, "soundlink");
+  const signed = await slSign(line, key);
+  $("tx-wire").textContent = signed;
+  const bytes = new TextEncoder().encode(signed);
+  const dur = (SL.SYNC_SYMS + (bytes.length + 2) * 2 + SL.END_SYMS) * SL.T;
+  $("tx-meta").textContent = `${bytes.length} B · ${dur.toFixed(1)} s on air`;
+  return { signed, bytes };
+}
+$("tx-sign-only").addEventListener("click", () =>
+  buildSigned().catch(e => $("tx-status").textContent = e.message));
+$("tx-send").addEventListener("click", async () => {
+  try {
+    const { bytes } = await buildSigned();
+    const ac = audio(); await ac.resume();
+    const samples = slSynth(bytes, ac.sampleRate);
+    const buf = ac.createBuffer(1, samples.length, ac.sampleRate);
+    buf.copyToChannel(samples, 0);
+    const src = ac.createBufferSource();
+    src.buffer = buf; src.connect(ac.destination);
+    $("tx-send").disabled = true;
+    $("tx-status").textContent = "transmitting…";
+    src.onended = () => { $("tx-send").disabled = false; $("tx-status").textContent = "done"; };
+    src.start();
+  } catch (e){ $("tx-status").textContent = e.message; $("tx-send").disabled = false; }
+});
+
+/* Receive */
+let stream = null, worklet = null, raf = 0;
+function setBadge(cls, txt){ const b = $("rx-badge"); b.className = "badge " + cls; b.textContent = txt; }
+
+$("rx-listen").addEventListener("click", async () => {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }});
+  } catch (e){
+    const n = $("rx-notice");
+    n.textContent = "Microphone unavailable (" + e.name + "). If this page is embedded, open it directly: webapp/soundlink.html from the repo.";
+    n.classList.add("show");
+    return;
+  }
+  const ac = audio(); await ac.resume();
+  const srcNode = ac.createMediaStreamSource(stream);
+  const analyser = ac.createAnalyser(); analyser.fftSize = 2048;
+  srcNode.connect(analyser);
+  const proc = ac.createScriptProcessor(4096, 1, 1);
+  const demod = new SLDemod(ac.sampleRate);
+  const rxKey = await slKey($("rx-pass").value, "soundlink");
+  proc.onaudioprocess = async ev => {
+    const out = demod.feed(ev.inputBuffer.getChannelData(0).slice());
+    if (out){
+      const text = new TextDecoder().decode(out);
+      $("rx-wire").textContent = text;
+      const ok = await slVerify(text, rxKey);
+      setBadge(ok ? "ok" : "bad", ok ? "✓ MAC valid — record authentic" : "✗ MAC INVALID — do not trust");
+      const kv = $("rx-kv"); kv.innerHTML = "";
+      for (const t of text.split(/\s+/)){
+        if (!t.startsWith("~") || !t.includes(":") || t.startsWith("~!:")) continue;
+        const i = t.indexOf(":");
+        const tr = document.createElement("tr");
+        const td1 = document.createElement("td"), td2 = document.createElement("td");
+        td1.textContent = t.slice(0, i); td2.textContent = t.slice(i + 1);
+        tr.append(td1, td2); kv.append(tr);
+      }
+      stopListening("decoded");
+    }
+  };
+  srcNode.connect(proc); proc.connect(ac.destination);
+  worklet = { proc, srcNode };
+  $("rx-listen").disabled = true; $("rx-stop").disabled = false;
+  setBadge("idle", "listening…"); $("rx-status").textContent = "";
+  const cv = $("spectrum"), g = cv.getContext("2d");
+  const data = new Uint8Array(analyser.frequencyBinCount);
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n);
+  (function draw(){
+    raf = requestAnimationFrame(draw);
+    analyser.getByteFrequencyData(data);
+    g.fillStyle = css("--code-bg"); g.fillRect(0, 0, cv.width, cv.height);
+    g.fillStyle = css("--accent");
+    const lo = Math.floor(1300 / (ac.sampleRate / 2) * data.length);
+    const hi = Math.ceil(4600 / (ac.sampleRate / 2) * data.length);
+    const bw = cv.width / (hi - lo);
+    for (let i = lo; i < hi; i++){
+      const h = data[i] / 255 * cv.height;
+      g.fillRect((i - lo) * bw, cv.height - h, Math.max(bw - 1, 1), h);
+    }
+  })();
+});
+function stopListening(msg){
+  cancelAnimationFrame(raf);
+  if (worklet){ worklet.proc.disconnect(); worklet.srcNode.disconnect(); worklet = null; }
+  if (stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
+  $("rx-listen").disabled = false; $("rx-stop").disabled = true;
+  if (msg !== "decoded") setBadge("idle", "idle");
+  $("rx-status").textContent = msg === "decoded" ? "frame received" : "";
+}
+$("rx-stop").addEventListener("click", () => stopListening());
+})();
+</script>
+</body>
+</html>
