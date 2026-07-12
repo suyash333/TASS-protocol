@@ -99,6 +99,23 @@ METAR and amateur-radio exchange formats solved character-priced
 channels a century ago with the same move — short codes plus a shared
 dictionary. TASS is that move with a validation-and-signing layer.
 
+**The acoustic special case — data over sound.** The slowest
+character-priced channels still in production are *acoustic*: ultrasonic
+pairing chirps, AFSK modems, speaker-to-microphone data transfer in
+payment and provisioning flows. At single-digit bytes per second, every
+byte is seconds of airtime — and sound is an inherently *broadcast,
+spoofable* medium (anyone can play a chirp at your device), which makes
+the `~!` MAC load-bearing rather than optional: authentication is the
+difference between "I heard a record" and "I can act on it." The
+repository ships a working demonstration,
+[`webapp/soundlink.html`](../../webapp/soundlink.html): a 16-tone MFSK
+modem in the Web Audio API (4 bits/symbol, 1800–4050 Hz, 64 ms symbols
+≈ 7 B/s) that signs a TASS record, plays it as an audible chirp, and
+decodes + MAC-verifies it through another device's microphone. Its modem
+core is loopback-tested digitally — clean channel, additive noise at ⅓
+of signal amplitude, random start offset, tamper and wrong-key
+rejection, and reorder tolerance via canonical MACs.
+
 ## 11.4 Optical and near-field: QR codes and NFC tags
 
 **The constraint.** QR capacity is quantized: a shorter payload means a
